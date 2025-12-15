@@ -1,0 +1,304 @@
+local UI = loadstring(game:HttpGet("https://xan.bar/init.lua"))()
+
+local Window = UI.New({
+    Title = "Hide or Die",
+    Theme = "Default"
+})
+
+local Main = Window:AddTab("General", UI.Icons.Misc)
+Main:AddSection("Features")
+
+Main:AddToggle("Show Hiders", { Default = false }, function(value)
+    for _, player in pairs(game.Players:GetPlayers()) do
+        local character = player.Character
+        if character then
+            local morphModel = character:FindFirstChild("MorphModel")
+            if morphModel then
+                if value then
+                    if not character:FindFirstChild("RadarBillboard") then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "RadarBillboard"
+                        billboard.Size = UDim2.new(1, 50, 1, 50)
+                        billboard.StudsOffset = Vector3.new(0, 3, 0)
+                        billboard.AlwaysOnTop = true
+                        billboard.Parent = character
+
+                        local textLabel = Instance.new("TextLabel")
+                        textLabel.Size = UDim2.new(1, 0, 1, 0)
+                        textLabel.BackgroundTransparency = 1
+                        textLabel.Text = player.DisplayName
+                        textLabel.Font = Enum.Font.RobotoMono
+                        textLabel.TextSize = 15
+                        textLabel.TextScaled = false
+                        textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
+                        textLabel.Parent = billboard
+                    end
+                else
+                    local existing = character:FindFirstChild("RadarBillboard")
+                    if existing then
+                        existing:Destroy()
+                    end
+                end
+            end
+        end
+    end
+end)
+
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        local morphModel = character:FindFirstChild("MorphModel")
+        if morphModel then
+            if Main:GetToggle("Show Hiders") then
+                if not character:FindFirstChild("RadarBillboard") then
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "RadarBillboard"
+                    billboard.Size = UDim2.new(1, 50, 1, 50)
+                    billboard.StudsOffset = Vector3.new(0, 3, 0)
+                    billboard.AlwaysOnTop = true
+                    billboard.Parent = character
+
+                    local textLabel = Instance.new("TextLabel")
+                    textLabel.Size = UDim2.new(1, 0, 1, 0)
+                    textLabel.BackgroundTransparency = 1
+                    textLabel.Text = player.DisplayName
+                    textLabel.Font = Enum.Font.RobotoMono
+                    textLabel.TextSize = 15
+                    textLabel.TextScaled = false
+                    textLabel.TextColor3 = Color3.fromRGB(0, 0, 255)
+                    textLabel.Parent = billboard
+                end
+            else
+                local existing = character:FindFirstChild("RadarBillboard")
+                if existing then
+                    existing:Destroy()
+                end
+            end
+        end
+    end)
+end)
+
+local Players = game:GetService("Players")
+local highlightEnabled = false
+local loopRunning = false
+
+local function addHighlight(morphModel)
+    if morphModel and not morphModel:FindFirstChild("RadarHighlight") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "RadarHighlight"
+        highlight.FillColor = Color3.fromRGB(0, 0, 255)
+        highlight.OutlineColor = Color3.fromRGB(0, 0, 255)
+        highlight.FillTransparency = 1
+        highlight.OutlineTransparency = 0
+        highlight.Parent = morphModel
+    end
+end
+
+local function removeHighlight(morphModel)
+    local existing = morphModel and morphModel:FindFirstChild("RadarHighlight")
+    if existing then
+        existing:Destroy()
+    end
+end
+
+local function clearAllHighlights()
+    for _, player in pairs(Players:GetPlayers()) do
+        local character = player.Character
+        if character then
+            local morphModel = character:FindFirstChild("MorphModel")
+            if morphModel then
+                removeHighlight(morphModel)
+            end
+        end
+    end
+end
+
+local function highlightLoop()
+    if loopRunning then return end
+    loopRunning = true
+
+    spawn(function()
+        while highlightEnabled do
+            for _, player in pairs(Players:GetPlayers()) do
+                local character = player.Character
+                if character then
+                    local morphModel = character:FindFirstChild("MorphModel")
+                    if morphModel then
+                        addHighlight(morphModel)
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+        clearAllHighlights()
+        loopRunning = false
+    end)
+end
+
+Main:AddToggle("Highlight Hiders", { Default = false }, function(value)
+    highlightEnabled = value
+    if highlightEnabled then
+        highlightLoop()
+    else
+        clearAllHighlights()
+    end
+end)
+
+local AutoFarm = false
+local Player = game.Players.LocalPlayer
+
+Main:AddButton("Reset", function()
+	local player = game.Players.LocalPlayer
+	local character = player.Character
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid.Health = 0
+		end
+	end
+    UI.Success("Reset", "Useful if you want to be a Seeker when the round starts")
+end)
+
+Main:AddToggle("Auto-Farm Coins", { Default = false }, function(value)
+    AutoFarm = value
+
+    if AutoFarm then
+        UI.Success("Auto-Farm Coins", "Only Hiders can perform")
+
+        task.spawn(function()
+            while AutoFarm do
+                local character = Player.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                if not hrp then
+                    task.wait(0.5)
+                    continue
+                end
+
+                for _, v in pairs(workspace.Trash.Coins:GetDescendants()) do
+                    if not AutoFarm then
+                        break
+                    end
+
+                    if v:IsA("Part") and v.Name == "Coin" then
+                        hrp.CFrame = v.CFrame
+                        task.wait(0.1)
+                    end
+                end
+
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+Main:AddButton("Win Obby", function()
+	firetouchinterest(workspace.Obby.Pad.Pad, game.Players.LocalPlayer.Character.HumanoidRootPart, 0)
+	firetouchinterest(workspace.Obby.Pad.Pad, game.Players.LocalPlayer.Character.HumanoidRootPart, 1)
+end)
+
+local function findSpawnExcluding()
+    for _, descendant in pairs(workspace.Maps:GetDescendants()) do
+        if descendant:IsA("SpawnLocation") then
+            local parentName = descendant.Parent.Name
+            if parentName ~= "Lobby" and parentName ~= "SeekerCharacter" then
+                return descendant
+            end
+        end
+    end
+    return nil
+end
+
+local thatonespawn = findSpawnExcluding()
+local toggled = false
+
+Main:AddToggle("Get Coins On The Move", { Default = false }, function(value)
+    toggled = value
+    if toggled then
+        spawn(function()
+            while toggled do
+                local character = game.Players.LocalPlayer.Character
+                local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+                local coin = workspace.Maps.Lobby:FindFirstChild("Coin")
+                if humanoidRootPart and coin and thatonespawn then
+                    humanoidRootPart.CFrame = coin.Coin.CFrame
+                    task.wait()
+                    humanoidRootPart.CFrame = thatonespawn.CFrame
+                else
+                    task.wait(1)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+local Main2 = Window:AddTab("More", UI.Icons.Debug)
+Main2:AddSection("Features")
+
+Main2:AddButton("Infinite Yield", function()
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/edgeiy/infiniteyield/master/source"))()
+    UI.Success("Infinite Yield", "The most popular universal commands")
+end)
+
+local NoColorCorrection = true
+local Lighting = game:GetService("Lighting")
+
+Main2:AddToggle("No Color-Correction", { Default = false }, function(value)
+    NoColorCorrection = value
+
+    task.spawn(function()
+        while NoColorCorrection do
+            if Lighting:FindFirstChild("ColorCorrection") then
+                Lighting.ColorCorrection.Enabled = false
+            end
+            task.wait(0.1)
+        end
+    end)
+
+    if not value and Lighting:FindFirstChild("ColorCorrection") then
+        Lighting.ColorCorrection.Enabled = true
+    end
+end)
+
+local Lighting = game:GetService("Lighting")
+local Sky = Lighting:WaitForChild("Afternoon Sky")
+local OriginalParent = Sky.Parent
+
+Main2:AddToggle("Disable Afternoon Sky", { Default = false }, function(value)
+    if value then
+        Sky.Parent = nil
+    else
+        Sky.Parent = OriginalParent
+    end
+end)
+
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local currentSpeed = 16
+
+Main2:AddSlider("Walk Speed", { Min = 16, Max = 100, Default = 16 }, function(value)
+    currentSpeed = value
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = currentSpeed
+    end
+end)
+
+local function applySpeed(character)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if humanoid then
+        humanoid.WalkSpeed = currentSpeed
+    end
+end
+
+localPlayer.CharacterAdded:Connect(function(character)
+    applySpeed(character)
+end)
+
+if localPlayer.Character then
+    applySpeed(localPlayer.Character)
+end
+
+if UI.IsMobile then
+    UI.MobileToggle({ Window = Window })
+end
